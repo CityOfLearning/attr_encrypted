@@ -121,14 +121,17 @@ if defined?(ActiveRecord::Base)
           def method_missing_with_attr_encrypted(method, *args, &block)
             if match = /^(find|scoped)_(all_by|by)_([_a-zA-Z]\w*)$/.match(method.to_s)
               attribute_names = match.captures.last.split('_and_')
+              where_args = {}
               attribute_names.each_with_index do |attribute, index|
                 if attr_encrypted?(attribute) && encrypted_attributes[attribute.to_sym][:mode] == :single_iv_and_salt
                   args[index] = send("encrypt_#{attribute}", args[index])
                   warn "DEPRECATION WARNING: This feature will be removed in the next major release."
                   attribute_names[index] = encrypted_attributes[attribute.to_sym][:attribute]
+                  where_args[attribute_names[index]] = args[index]
                 end
               end
-              method = "#{match.captures[0]}_#{match.captures[1]}_#{attribute_names.join('_and_')}".to_sym
+              method = :where #"#{match.captures[0]}_#{match.captures[1]}_#{attribute_names.join('_and_')}".to_sym
+              return send("where", where_args)
             end
             method_missing_without_attr_encrypted(method, *args, &block)
           end
